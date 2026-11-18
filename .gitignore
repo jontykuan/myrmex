@@ -1,13 +1,41 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+build/
 .pytest_cache/
 .mypy_cache/
 .venv/
-.worktrees/
-.myrmex/
+.coverage
+htmlcov/
+
+# Node / TS
 node_modules/
 dist/
-.mutmut-cache/
+coverage/
 .stryker-tmp/
+
+# Mutation / Linter / Myrmex Runtime
+.mutmut-cache/
+.worktrees/
+.myrmex/
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets & Env
 .env
 .env.*
+
+# Transient & Scratch
+.scratch/
+*.log
+*.tmp
+*.swp
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
