@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.venv/
+.worktrees/
+.myrmex/
+node_modules/
+dist/
+.mutmut-cache/
+.stryker-tmp/
