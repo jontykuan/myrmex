@@ -2,6 +2,7 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
+import subprocess
 import time
 from packages.mcp.src.adapters.sqlite_store import SqliteStateStore
 from packages.runner.src.genai_client import GenAILlmClient, resolve_api_key
@@ -25,19 +26,23 @@ GATE_TIERS = {
 }
 
 
-def seed_environment(store: SqliteStateStore, gates_file: Path) -> None:
+def seed_environment(store: SqliteStateStore, gates_file: Path, rel_prefix: str = "") -> None:
     gates = json.loads(gates_file.read_text(encoding="utf-8"))
     for gate_id, cmd in gates.items():
         tier, active = GATE_TIERS.get(gate_id, (1, 0))
         store.upsert_gate_policy(gate_id, tier, cmd, active)
     now = int(time.time())
+    prefix = f"{rel_prefix.strip('/')}/" if rel_prefix.strip("/") else ""
     for slice_id, scope in DEFAULT_SEEDS:
-        store.emit_pheromone("architect", slice_id, "task_seed", 10.0, 0.0, None, {"file_scope": scope}, now)
+        scoped = [f"{prefix}{p}" for p in scope]
+        store.emit_pheromone("architect", slice_id, "task_seed", 10.0, 0.0, None, {"file_scope": scoped}, now)
 
 
-def _worker_loop(db_path: Path, repo_root: Path, worker_id: str, api_key: str, model: str, max_cycles: int) -> list[str]:
+def _worker_loop(
+    db_path: Path, git_root: Path, target_branch: str, worker_id: str, api_key: str, model: str, max_cycles: int
+) -> list[str]:
     store = SqliteStateStore(db_path)
-    mcp = LocalMcpBridge(store, repo_root, worker_id=worker_id)
+    mcp = LocalMcpBridge(store, git_root, target_branch=target_branch, worker_id=worker_id)
     llm = GenAILlmClient(api_key=api_key, model=model)
     cfg = WorkerConfig(worker_id=worker_id, model=model)
     outcomes: list[str] = []
@@ -59,14 +64,19 @@ def main() -> None:
     args = parser.parse_args()
 
     api_key = resolve_api_key()
-    db_path = args.repo / ".myrmex" / "state.db"
+    target_dir = args.repo.resolve()
+    git_root = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=target_dir, text=True).strip())
+    target_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=git_root, text=True).strip()
+    rel_prefix = target_dir.relative_to(git_root).as_posix()
+
+    db_path = target_dir / ".myrmex" / "state.db"
     store = SqliteStateStore(db_path)
-    seed_environment(store, args.repo / ".myrmex" / "gates.json")
+    seed_environment(store, target_dir / ".myrmex" / "gates.json", rel_prefix=rel_prefix)
     store.close()
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = [
-            pool.submit(_worker_loop, db_path, args.repo.resolve(), f"ant-{i+1}", api_key, args.model, args.cycles)
+            pool.submit(_worker_loop, db_path, git_root, target_branch, f"ant-{i+1}", api_key, args.model, args.cycles)
             for i in range(args.workers)
         ]
         for i, fut in enumerate(futures):

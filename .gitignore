@@ -20,6 +20,8 @@ coverage/
 .mutmut-cache/
 .worktrees/
 .myrmex/
+!benchmarks/**/.myrmex/
+!benchmarks/**/.myrmex/gates.json
 *.db
 *.db-wal
 *.db-shm

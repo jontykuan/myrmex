@@ -1,0 +1,8 @@
+{
+  "base_build_test": "pytest -q benchmarks/bench-01/py/tests",
+  "diff_must_add_tests": "python -c \"import subprocess, sys; files = subprocess.check_output(['git','diff','--name-only','HEAD~1'], text=True).splitlines(); sys.exit(0 if any('test' in f for f in files) else 1)\"",
+  "strict_typecheck": "mypy --strict benchmarks/bench-01/py/src benchmarks/bench-01/py/tests",
+  "slice_loc_cap": "python -c \"import subprocess, sys; out = subprocess.check_output(['git','diff','--numstat','HEAD~1'], text=True).splitlines(); total = sum(int(l.split()[0]) for l in out if l.split()[0].isdigit()); sys.exit(0 if total <= 40 else 1)\"",
+  "ast_complexity_cap": "radon cc benchmarks/bench-01/py/src -n C -e",
+  "mutation_test": "mutmut run --CI"
+}

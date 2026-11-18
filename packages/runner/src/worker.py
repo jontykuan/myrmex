@@ -39,9 +39,19 @@ def _call_with_backoff(llm: LlmClient, messages: list[dict[str, str]], wt: Path,
     raise RuntimeError("unreachable")
 
 
+def _extract_scope(cand: dict[str, Any]) -> list[str]:
+    if cand.get("file_scope"):
+        return list(cand["file_scope"])
+    for p in cand.get("pheromones", []):
+        payload = p.get("payload") or {}
+        if isinstance(payload, dict) and payload.get("file_scope"):
+            return list(payload["file_scope"])
+    return [f"{cand['target_ref']}/**"]
+
+
 def _claim_first(mcp: McpClient, worker_id: str, candidates: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]] | None:
     for cand in candidates:
-        scope = cand.get("file_scope") or [f"{cand['target_ref']}/**"]
+        scope = _extract_scope(cand)
         claim = mcp.claim_slice(worker_id, str(cand["target_ref"]), scope)
         if claim["status"] == "CLAIMED":
             return cand, claim

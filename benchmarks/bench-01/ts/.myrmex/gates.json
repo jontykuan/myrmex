@@ -1,0 +1,8 @@
+{
+  "base_build_test": "npm test",
+  "diff_must_add_tests": "node -e \"const cp=require('child_process');const f=cp.execSync('git diff --name-only HEAD~1',{encoding:'utf8'}).split(/\\r?\\n/);process.exit(f.some(x=>x.includes('test'))?0:1)\"",
+  "strict_typecheck": "npx tsc --noEmit",
+  "slice_loc_cap": "node -e \"const cp=require('child_process');const l=cp.execSync('git diff --numstat HEAD~1',{encoding:'utf8'}).trim().split(/\\r?\\n/).filter(Boolean);const t=l.reduce((a,x)=>a+(parseInt(x.split(/\\s+/)[0],10)||0),0);process.exit(t<=40?0:1)\"",
+  "ast_complexity_cap": "npx eslint --rule \"complexity: [error, 10]\" src",
+  "mutation_test": "npx stryker run"
+}
