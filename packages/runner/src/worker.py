@@ -21,8 +21,13 @@ class LlmClient(Protocol):
 class WorkerConfig:
     worker_id: str
     model: str = "gemini-4-hydrogen"
-    max_retries: int = 3
-    backoff_base_sec: float = 1.0
+    max_retries: int = 5
+    backoff_base_sec: float = 2.0
+
+
+def _is_transient(exc: Exception) -> bool:
+    msg = str(exc)
+    return any(code in msg for code in ("429", "503", "UNAVAILABLE", "RESOURCE_EXHAUSTED"))
 
 
 def _call_with_backoff(llm: LlmClient, messages: list[dict[str, str]], wt: Path, cfg: WorkerConfig) -> tuple[dict[str, Any], int]:
@@ -31,7 +36,7 @@ def _call_with_backoff(llm: LlmClient, messages: list[dict[str, str]], wt: Path,
         try:
             return llm.generate(messages, wt), wait_ms
         except Exception as exc:
-            if "429" not in str(exc) or attempt == cfg.max_retries:
+            if not _is_transient(exc) or attempt == cfg.max_retries:
                 raise
             delay = cfg.backoff_base_sec * (2**attempt) + random.uniform(0, cfg.backoff_base_sec * 0.25)
             time.sleep(delay)
